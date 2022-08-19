@@ -12,6 +12,7 @@ import (
 
 var dictSize, wordCount int64
 var threads, uniqwords int
+var result map[word]string
 
 type word [10]byte
 
@@ -113,48 +114,56 @@ func processing(r io.Reader, w io.Writer) {
 
 	uniqwords = len(uniqw)
 
-	result := make(map[word]string)
-	parallel(words, result)
+	result = make(map[word]string)
+	res := parallel(words, result)
 
-	for _, s := range words {
-		fmt.Fprintln(w, result[s])
+	for i := range res {
+		fmt.Fprintln(w, res[i])
 	}
 
 }
 
-func parallel(words []word, result map[word]string) {
-	var mut sync.Mutex
+func parallel(words []word, result map[word]string) []string {
+	var mut sync.RWMutex
+	var mut2 sync.Mutex
 
-	proc := func(wg *sync.WaitGroup, part []word) {
-		var s string
+	r := make([]string, len(words))
+
+	proc := func(wg *sync.WaitGroup, part []word, res []string) {
+
 		for i := range part {
-			mut.Lock()
-			_, ok := result[part[i]]
+			mut.RLock()
+			s, ok := result[part[i]]
+			mut.RUnlock()
 			if !ok {
 				s = maxRhymeWord(part[i])
-
+				mut.Lock()
 				result[part[i]] = s
+				mut.Unlock()
 			}
-			mut.Unlock()
+			mut2.Lock()
+			res[i] = s
+			mut2.Unlock()
 		}
 		wg.Done()
 	}
 	var wg sync.WaitGroup
 
-	packsize := len(words) / 4
+	packsize := len(words) / 16
 
-	for r := len(words); r > 0; r -= packsize {
-		b := r - packsize
-		if b < 0 {
-			b = 0
+	for endOffset := len(words); endOffset > 0; endOffset -= packsize {
+		beginOffset := endOffset - packsize
+		if beginOffset < 0 {
+			beginOffset = 0
 		}
 		wg.Add(1)
 		threads++
-		go proc(&wg, words[b:r])
+		go proc(&wg, words[beginOffset:endOffset], r[beginOffset:endOffset])
 	}
 
 	wg.Wait()
 
+	return r
 }
 
 func main() {
@@ -167,5 +176,6 @@ func main() {
 		fmt.Printf("dictSize: %v\n", dictSize)
 		fmt.Printf("wordCount: %v\n", wordCount)
 		fmt.Printf("uniqwords: %v\n", uniqwords)
+		fmt.Printf("result size: %v\n", len(result))
 	}
 }
