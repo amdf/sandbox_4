@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"os"
@@ -24,6 +25,11 @@ func (w *word) set(s string) {
 	} else {
 		panic("length")
 	}
+}
+
+func (w *word) maxrhyme() (result int) {
+	result = (10 - bytes.LastIndex(w[:], []byte{0x00})) - 2
+	return
 }
 
 var dict map[string]word
@@ -49,6 +55,7 @@ func rhymeValue(s1, s2 word) (result int, equal bool) {
 func maxRhymeWord(s word) (result string) {
 	var max, f int
 	var word, found, found2 string
+	rmax := s.maxrhyme()
 
 	for word = range dict {
 		val, eq := rhymeValue(s, dict[word])
@@ -58,6 +65,9 @@ func maxRhymeWord(s word) (result string) {
 				f++
 				max = val
 				found = word
+				if max == rmax {
+					break
+				}
 			}
 		}
 	}

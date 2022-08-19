@@ -5,6 +5,28 @@ import (
 	"testing"
 )
 
+func TestMax(t *testing.T) {
+	var s word
+
+	s.set("id")
+
+	if 1 != s.maxrhyme() {
+		t.Error("TestMax wrong")
+	}
+
+	s.set("abc")
+
+	if 2 != s.maxrhyme() {
+		t.Error("TestMax wrong")
+	}
+
+	s.set("aaaaabbbbb")
+
+	if 9 != s.maxrhyme() {
+		t.Error("TestMax wrong")
+	}
+}
+
 func TestNorm1(t *testing.T) {
 	var buf, outbuf bytes.Buffer
 	buf.WriteString(
