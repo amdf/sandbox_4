@@ -12,7 +12,9 @@ type word [10]byte
 
 func (w *word) set(s string) {
 	if len(s) <= 10 {
-		copy(w[10-len(s):], s)
+		i := 10 - len(s)
+		copy(w[:i], "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"[:i])
+		copy(w[i:], s)
 	} else {
 		panic("length")
 	}
@@ -20,10 +22,11 @@ func (w *word) set(s string) {
 
 var dict map[string]struct{}
 
-func rhymeValue(s1, s2 word) (result int) {
-
+func rhymeValue(s1, s2 word) (result int, equal bool) {
+	equal = true
 	for i := 9; i >= 0; i-- {
 		if 0 == s1[i] || 0 == s2[i] || s1[i] != s2[i] {
+			equal = false
 			break
 		}
 
