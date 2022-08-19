@@ -8,7 +8,31 @@ import (
 	"strconv"
 )
 
+type word [10]byte
+
+func (w *word) set(s string) {
+	if len(s) <= 10 {
+		copy(w[10-len(s):], s)
+	} else {
+		panic("length")
+	}
+}
+
 var dict map[string]struct{}
+
+func rhymeValue(s1, s2 word) (result int) {
+
+	for i := 9; i >= 0; i-- {
+		if 0 == s1[i] || 0 == s2[i] || s1[i] != s2[i] {
+			break
+		}
+
+		result++
+
+	}
+
+	return
+}
 
 func processing(r io.Reader, w io.Writer) {
 	sc := bufio.NewScanner(r)
@@ -34,13 +58,13 @@ func processing(r io.Reader, w io.Writer) {
 	}
 	qSize, _ := strconv.ParseInt(sc.Text(), 10, 64)
 
-	words := make([]string, qSize)
+	words := make([]word, qSize)
 
 	for i := 0; i < int(qSize); i++ {
 		if !sc.Scan() {
 			break
 		}
-		words[i] = sc.Text()
+		words[i].set(sc.Text())
 	}
 
 	for _, val := range words {
