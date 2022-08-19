@@ -1,6 +1,34 @@
 package main
 
-import "testing"
+import (
+	"bytes"
+	"testing"
+)
+
+func TestNorm1(t *testing.T) {
+	var buf, outbuf bytes.Buffer
+	buf.WriteString(
+		"3\n" +
+			"task\n" +
+			"decide\n" +
+			"id\n" +
+			"6\n" +
+			"flask\n" +
+			"code\n" +
+			"void\n" +
+			"forces\n" +
+			"id\n" +
+			"ask\n")
+
+	processing(&buf, &outbuf)
+
+	str := outbuf.String()
+
+	if 0 == len(str) {
+		t.Error("TestNorm1 wrong")
+	}
+
+}
 
 func TestRhymes(t *testing.T) {
 	var s1, s2 word
@@ -36,6 +64,13 @@ func TestRhymes(t *testing.T) {
 
 func TestEqual(t *testing.T) {
 	var s1, s2 word
+
+	s1.set("id")
+	s2.set("id")
+
+	if v, eq := rhymeValue(s1, s2); v != 2 || eq != true {
+		t.Error("id equals")
+	}
 
 	s1.set("flaskflask")
 	s2.set("flaskflask")

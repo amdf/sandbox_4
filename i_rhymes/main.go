@@ -20,18 +20,49 @@ func (w *word) set(s string) {
 	}
 }
 
-var dict map[string]struct{}
+var dict map[string]word
 
 func rhymeValue(s1, s2 word) (result int, equal bool) {
 	equal = true
 	for i := 9; i >= 0; i-- {
 		if 0 == s1[i] || 0 == s2[i] || s1[i] != s2[i] {
-			equal = false
+			if !(0 == s1[i] && 0 == s2[i]) {
+				equal = false
+			}
+
 			break
 		}
 
 		result++
 
+	}
+
+	return
+}
+
+func maxRhymeWord(s word) (result string) {
+	var max, f int
+	var word, found, found2 string
+
+	for word = range dict {
+		val, eq := rhymeValue(s, dict[word])
+		if !eq {
+			found2 = word
+			if val > max {
+				f++
+				max = val
+				found = word
+			}
+		}
+	}
+
+	result = found
+	if 0 == len(result) {
+		result = found2
+	}
+
+	if 0 == len(found) && 0 == len(found2) {
+		panic("!")
 	}
 
 	return
@@ -48,12 +79,15 @@ func processing(r io.Reader, w io.Writer) {
 
 	dictSize, _ = strconv.ParseInt(sc.Text(), 10, 64)
 
-	dict = make(map[string]struct{}, dictSize)
+	dict = make(map[string]word, dictSize)
 	for i := 0; i < int(dictSize); i++ {
 		if !sc.Scan() {
 			break
 		}
-		dict[sc.Text()] = struct{}{}
+		t := sc.Text()
+		var w word
+		w.set(t)
+		dict[t] = w
 	}
 
 	if !sc.Scan() {
@@ -70,8 +104,8 @@ func processing(r io.Reader, w io.Writer) {
 		words[i].set(sc.Text())
 	}
 
-	for _, val := range words {
-		fmt.Fprintf(w, "%s\n", val)
+	for _, s := range words {
+		fmt.Fprintf(w, maxRhymeWord(s)+"\n")
 	}
 
 }
