@@ -32,7 +32,8 @@ func (w *word) maxrhyme() (result int) {
 	return
 }
 
-var dict map[string]word
+var dict_w []word
+var dict_s []string
 
 func rhymeValue(s1, s2 word) (result int, equal bool) {
 	equal = true
@@ -53,21 +54,20 @@ func rhymeValue(s1, s2 word) (result int, equal bool) {
 }
 
 func maxRhymeWord(s word) (result string) {
-	var max, f int
-	var word, found, found2 string
-	rmax := s.maxrhyme()
+	var max int
+	var found, found2 string
+	// rmax := s.maxrhyme()
 
-	for word = range dict {
-		val, eq := rhymeValue(s, dict[word])
+	for i := range dict_s {
+		val, eq := rhymeValue(s, dict_w[i])
 		if !eq {
-			found2 = word
+			found2 = dict_s[i]
 			if val > max {
-				f++
 				max = val
-				found = word
-				if max == rmax {
-					break
-				}
+				found = dict_s[i]
+				// if max == rmax {
+				// 	break
+				// }
 			}
 		}
 	}
@@ -93,7 +93,6 @@ func processing(r io.Reader, w io.Writer) {
 
 	dictSize, _ = strconv.ParseInt(sc.Text(), 10, 64)
 
-	dict = make(map[string]word, dictSize)
 	for i := 0; i < int(dictSize); i++ {
 		if !sc.Scan() {
 			break
@@ -101,7 +100,8 @@ func processing(r io.Reader, w io.Writer) {
 		t := sc.Text()
 		var w word
 		w.set(t)
-		dict[t] = w
+		dict_w = append(dict_w, w)
+		dict_s = append(dict_s, t)
 	}
 
 	if !sc.Scan() {
@@ -159,7 +159,7 @@ func parallel(words []word, result map[word]string) []string {
 	}
 	var wg sync.WaitGroup
 
-	packsize := len(words) / 16
+	packsize := len(words) / 4
 
 	for endOffset := len(words); endOffset > 0; endOffset -= packsize {
 		beginOffset := endOffset - packsize
