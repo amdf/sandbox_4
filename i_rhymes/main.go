@@ -6,8 +6,12 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
+
+var dictSize, wordCount int64
+var threads, uniqwords int
 
 type word [10]byte
 
@@ -72,8 +76,6 @@ func maxRhymeWord(s word) (result string) {
 func processing(r io.Reader, w io.Writer) {
 	sc := bufio.NewScanner(r)
 
-	var dictSize int64
-
 	if !sc.Scan() {
 		return
 	}
@@ -94,20 +96,64 @@ func processing(r io.Reader, w io.Writer) {
 	if !sc.Scan() {
 		return
 	}
-	qSize, _ := strconv.ParseInt(sc.Text(), 10, 64)
+	wordCount, _ = strconv.ParseInt(sc.Text(), 10, 64)
 
-	words := make([]word, qSize)
+	words := make([]word, wordCount)
 
-	for i := 0; i < int(qSize); i++ {
+	uniqw := make(map[string]struct{})
+
+	for i := 0; i < int(wordCount); i++ {
 		if !sc.Scan() {
 			break
 		}
-		words[i].set(sc.Text())
+		s := sc.Text()
+		words[i].set(s)
+		uniqw[s] = struct{}{}
 	}
 
+	uniqwords = len(uniqw)
+
+	result := make(map[word]string)
+	parallel(words, result)
+
 	for _, s := range words {
-		fmt.Fprintf(w, maxRhymeWord(s)+"\n")
+		fmt.Fprintln(w, result[s])
 	}
+
+}
+
+func parallel(words []word, result map[word]string) {
+	var mut sync.Mutex
+
+	proc := func(wg *sync.WaitGroup, part []word) {
+		var s string
+		for i := range part {
+			mut.Lock()
+			_, ok := result[part[i]]
+			if !ok {
+				s = maxRhymeWord(part[i])
+
+				result[part[i]] = s
+			}
+			mut.Unlock()
+		}
+		wg.Done()
+	}
+	var wg sync.WaitGroup
+
+	packsize := len(words) / 4
+
+	for r := len(words); r > 0; r -= packsize {
+		b := r - packsize
+		if b < 0 {
+			b = 0
+		}
+		wg.Add(1)
+		threads++
+		go proc(&wg, words[b:r])
+	}
+
+	wg.Wait()
 
 }
 
@@ -115,6 +161,11 @@ func main() {
 	t := time.Now()
 	processing(os.Stdin, os.Stdout)
 	if len(os.Args) > 1 {
+		fmt.Println()
 		fmt.Println(time.Since(t))
+		fmt.Printf("threads: %v\n", threads)
+		fmt.Printf("dictSize: %v\n", dictSize)
+		fmt.Printf("wordCount: %v\n", wordCount)
+		fmt.Printf("uniqwords: %v\n", uniqwords)
 	}
 }
