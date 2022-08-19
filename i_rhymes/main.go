@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"time"
 )
 
 type word [10]byte
@@ -111,5 +112,9 @@ func processing(r io.Reader, w io.Writer) {
 }
 
 func main() {
+	t := time.Now()
 	processing(os.Stdin, os.Stdout)
+	if len(os.Args) > 1 {
+		fmt.Println(time.Since(t))
+	}
 }
