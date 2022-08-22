@@ -120,24 +120,37 @@ func (t *Trie) SearchWord(word string) bool {
 func (t *Trie) DeleteWord(word string) {
 	strippedWord := reverse(word)
 	current := t.RootNode
-	var nodes []*Node
-	for i := 0; i < len(strippedWord); i++ {
+
+	for i := 0; i < len(strippedWord)-1; i++ {
 		index := strippedWord[i] - 'a'
-		//we have encountered null in the path we were transversing meaning this is the last node
-		///that means this word is not indexed(present) in this trie
+
 		if current == nil || current.Children[index] == nil {
 			return
 		}
 		current = current.Children[index]
-		nodes = append(nodes, current)
 	}
 
-	for i := len(nodes) - 1; i >= 0; i-- {
-		if nodes[i].CountChildren() > 1 {
-			nodes[i].Children[strippedWord[i]-'a'] = nil
-			break
+	index := strippedWord[len(strippedWord)-1] - 'a'
+	current.Children[index] = nil
+}
+
+func (t *Trie) Search(word string) (result string) {
+	result = t.SearchMore(word)
+	if result == word {
+		t.DeleteWord(word)
+		result = t.SearchMore(word)
+		if result == word || "" == result {
+			panic("Search()")
 		}
+		t.Insert(word)
 	}
+
+	// if "" == result {
+	// 	for i := 0; (result == word) && i < len(dict_s); i++ {
+	// 		result = dict_s[i]
+	// 	}
+	// }
+	return
 }
 
 func (t *Trie) SearchMore(word string) (result string) {
@@ -189,7 +202,7 @@ func (t *Trie) SearchMore(word string) (result string) {
 	}
 
 	result = reverse(b.String())
-	result = result[1:]
+	//result = result[1:]
 	// if (result == word) {}
 	// for i := 0; (result == word) && i < len(dict_s); i++ {
 	// 	result = dict_s[i]

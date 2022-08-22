@@ -10,28 +10,29 @@ func TestAb(t *testing.T) {
 	tr := NewTrie()
 	tr.Insert("ab")
 	tr.Insert("az")
-	tr.Insert("fb")
-	tr.Insert("fz")
+	tr.Insert("faz")
+	tr.Insert("braz")
+	tr.Insert("godaz")
 
-	b = tr.SearchWord("az")
-	tr.DeleteWord("az")
-	b = tr.SearchWord("az")
-	tr.Insert("az")
-	b = tr.SearchWord("az")
+	// str = tr.SearchMore("az")
+	// // tr.DeleteWord("az")
+	// b = tr.SearchWord("az")
+	// tr.Insert("az")
+	// b = tr.SearchWord("az")
 
 	search := []string{
 		"ab",
 		"az",
-		"fab",
 		"faz",
-		"bb",
-		"bz",
+		"strab",
+		"straz",
+		"mafaz",
+		"kez",
 	}
 
 	for _, s := range search {
 
-		b = tr.SearchWord(s)
-		str = tr.SearchMore(s[:len(s)-1])
+		str = tr.Search(s)
 		if str == s {
 			errors++
 		}
