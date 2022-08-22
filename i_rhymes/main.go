@@ -27,15 +27,32 @@ type Node struct {
 	Char string
 	//store all children  of a node
 	//that is from a-z
-	//a slice of Nodes(and each child will also have 26 children)
-	Children [26]*Node
+	//a slice of Nodes(and each child will also have 27 children)
+	Children [27]*Node
 }
 
-/// NewNode this will be used to initialize a new node with 26 children
+func (node Node) HasChildren() bool {
+	for i := 0; i < 27; i++ {
+		if nil != node.Children[i] {
+			return true
+		}
+	}
+	return false
+}
+func (node Node) CountChildren() (result int) {
+	for i := 0; i < 27; i++ {
+		if nil != node.Children[i] {
+			result++
+		}
+	}
+	return
+}
+
+/// NewNode this will be used to initialize a new node with 27 children
 ///each child should first be initialized to nil
 func NewNode(char string) *Node {
 	node := &Node{Char: char}
-	for i := 0; i < 26; i++ {
+	for i := 0; i < 27; i++ {
 		node.Children[i] = nil
 	}
 	return node
@@ -82,7 +99,48 @@ func (t *Trie) Insert(word string) {
 
 }
 
-func (t *Trie) SearchWord(word string) (result string) {
+// SearchWord will return false if a word we
+//are searching for is not in the trie
+//and true otherwise
+func (t *Trie) SearchWord(word string) bool {
+	strippedWord := reverse(word)
+	current := t.RootNode
+	for i := 0; i < len(strippedWord); i++ {
+		index := strippedWord[i] - 'a'
+		//we have encountered null in the path we were transversing meaning this is the last node
+		///that means this word is not indexed(present) in this trie
+		if current == nil || current.Children[index] == nil {
+			return false
+		}
+		current = current.Children[index]
+	}
+	return true
+}
+
+func (t *Trie) DeleteWord(word string) {
+	strippedWord := reverse(word)
+	current := t.RootNode
+	var nodes []*Node
+	for i := 0; i < len(strippedWord); i++ {
+		index := strippedWord[i] - 'a'
+		//we have encountered null in the path we were transversing meaning this is the last node
+		///that means this word is not indexed(present) in this trie
+		if current == nil || current.Children[index] == nil {
+			return
+		}
+		current = current.Children[index]
+		nodes = append(nodes, current)
+	}
+
+	for i := len(nodes) - 1; i >= 0; i-- {
+		if nodes[i].CountChildren() > 1 {
+			nodes[i].Children[strippedWord[i]-'a'] = nil
+			break
+		}
+	}
+}
+
+func (t *Trie) SearchMore(word string) (result string) {
 	if debug {
 		fmt.Println("Searching", word)
 	}
@@ -96,15 +154,24 @@ func (t *Trie) SearchWord(word string) (result string) {
 	i := 0
 	for !treeEnd {
 		index := byte(0)
+
 		if i < len(strippedWord) {
 			index = strippedWord[i] - 'a'
-			i++
 		}
 
 		found := false
 
-		if nil == current.Children[index] {
-			for j := byte(0); j < 26; j++ {
+		if nil != current.Children[index] {
+
+			b.WriteByte('a' + index)
+			current = current.Children[index]
+
+			found = true
+
+		}
+
+		if !found {
+			for j := byte(0); j < 27; j++ {
 				if nil != current.Children[j] {
 
 					b.WriteByte('a' + j)
@@ -112,27 +179,21 @@ func (t *Trie) SearchWord(word string) (result string) {
 
 					found = true
 					break
+
 				}
 			}
-		} else {
-			b.WriteByte('a' + index)
-			current = current.Children[index]
-
-			found = true
 		}
 
 		treeEnd = !found
+		i++
 	}
 
 	result = reverse(b.String())
-
-	if debug && result == word {
-		fmt.Println("Searching", word, " got ", result)
-	}
-
-	for i := 0; (result == word) && i < len(dict_s); i++ {
-		result = dict_s[i]
-	}
+	result = result[1:]
+	// if (result == word) {}
+	// for i := 0; (result == word) && i < len(dict_s); i++ {
+	// 	result = dict_s[i]
+	// }
 
 	return
 }
@@ -183,7 +244,7 @@ func processing(r io.Reader, w io.Writer) {
 
 	res := make([]string, wordCount)
 	for i := range words {
-		res[i] = tr.SearchWord(words[i])
+		res[i] = tr.SearchMore(words[i])
 	}
 
 	// uniqwords = len(uniqw)
