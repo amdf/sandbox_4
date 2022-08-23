@@ -5,41 +5,42 @@ import "testing"
 func TestAb(t *testing.T) {
 
 	var str string
-	var b bool
-	var errors int
+
 	tr := NewTrie()
-	tr.Insert("ab")
-	tr.Insert("az")
-	tr.Insert("faz")
-	tr.Insert("braz")
-	tr.Insert("godaz")
 
-	// str = tr.SearchMore("az")
-	// // tr.DeleteWord("az")
-	// b = tr.SearchWord("az")
-	// tr.Insert("az")
-	// b = tr.SearchWord("az")
+	tr.Insert("iiii")
+	tr.Insert("iiiii")
+	tr.Insert("iiiiiiii")
+	tr.Insert("iiiiiiiii")
+	tr.Insert("iii")
+	tr.Insert("ii")
+	tr.Insert("i")
+	tr.Insert("iiiiiii")
+	tr.Insert("iiiiii")
+	tr.Insert("iiiiiiiiii")
 
-	search := []string{
-		"ab",
-		"az",
-		"faz",
-		"strab",
-		"straz",
-		"mafaz",
-		"kez",
-	}
+	str = tr.Search("iiiiii")
+	str = tr.Search("iiii")
+	str = tr.Search("iiiiiiiiii")
+	str = tr.Search("iiiiiiii")
+	str = tr.Search("ii")
+	str = tr.Search("iiiiiii")
+	str = tr.Search("iiiiiiii")
+	str = tr.Search("iiiiiiii")
+	str = tr.Search("i")
+	str = tr.Search("i")
+	str = tr.Search("iiiiii")
+	str = tr.Search("i")
+	str = tr.Search("i")
+	str = tr.Search("iiiii")
+	str = tr.Search("iii")
+	str = tr.Search("iii")
+	str = tr.Search("iiiiiiiiii")
+	str = tr.Search("iiii")
+	str = tr.Search("iiiiiiiiii")
+	str = tr.Search("iii")
 
-	for _, s := range search {
-
-		str = tr.Search(s)
-		if str == s {
-			errors++
-		}
-	}
-
-	str = tr.SearchMore("z")
-	if "z" == str || !b {
-		t.Error()
+	if "" == str {
+		t.Error("")
 	}
 }
