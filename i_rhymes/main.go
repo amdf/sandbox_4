@@ -26,6 +26,7 @@ type Node struct {
 	Char     byte
 	Children [27]*Node
 	Prev     *Node
+	Word     bool
 }
 
 func (node Node) HasChildren() bool {
@@ -77,7 +78,7 @@ func (t *Trie) Insert(s string) {
 		}
 		current = current.Children[index]
 	}
-
+	current.Word = true
 }
 
 func (t *Trie) SearchWord(s string) bool {
@@ -92,7 +93,7 @@ func (t *Trie) SearchWord(s string) bool {
 		}
 		current = current.Children[index]
 	}
-	return true
+	return current.Word
 }
 
 func (t *Trie) DeleteWord(s string) {
@@ -111,6 +112,8 @@ func (t *Trie) DeleteWord(s string) {
 
 	i := len(word) - 1
 
+	allow := true
+
 	for {
 		current = current.Prev
 		if nil == current {
@@ -118,7 +121,13 @@ func (t *Trie) DeleteWord(s string) {
 		}
 		count := current.CountChildren()
 		if i >= 0 {
-
+			if current.Children[word[i]-'a'].Word {
+				if allow {
+					allow = false
+				} else {
+					break
+				}
+			}
 			current.Children[word[i]-'a'] = nil
 
 		} else {
@@ -197,13 +206,7 @@ func (t *Trie) SearchMore(s string) (result string) {
 		i++
 	}
 
-	result = reverse(b.String()) //!!!reverse
-	//result = b.String() //!!!reverse
-	//result = result[1:]
-	// if (result == word) {}
-	// for i := 0; (result == word) && i < len(dict_s); i++ {
-	// 	result = dict_s[i]
-	// }
+	result = reverse(b.String())
 
 	return
 }
@@ -257,57 +260,10 @@ func processing(r io.Reader, w io.Writer) {
 		res[i] = tr.Search(words[i])
 	}
 
-	// uniqwords = len(uniqw)
-
-	// res := parallel(words, result)
-
 	for i := range res {
 		fmt.Fprintln(w, res[i])
 	}
 }
-
-// func parallel(words []word, result map[word]string) []string {
-// 	var mut sync.RWMutex
-// 	var mut2 sync.Mutex
-
-// 	r := make([]string, len(words))
-
-// 	proc := func(wg *sync.WaitGroup, part []word, res []string) {
-
-// 		for i := range part {
-// 			mut.RLock()
-// 			s, ok := result[part[i]]
-// 			mut.RUnlock()
-// 			if !ok {
-// 				s = maxRhymeWord(part[i])
-// 				mut.Lock()
-// 				result[part[i]] = s
-// 				mut.Unlock()
-// 			}
-// 			mut2.Lock()
-// 			res[i] = s
-// 			mut2.Unlock()
-// 		}
-// 		wg.Done()
-// 	}
-// 	var wg sync.WaitGroup
-
-// 	packsize := len(words) / 4
-
-// 	for endOffset := len(words); endOffset > 0; endOffset -= packsize {
-// 		beginOffset := endOffset - packsize
-// 		if beginOffset < 0 {
-// 			beginOffset = 0
-// 		}
-// 		wg.Add(1)
-// 		threads++
-// 		go proc(&wg, words[beginOffset:endOffset], r[beginOffset:endOffset])
-// 	}
-
-// 	wg.Wait()
-
-// 	return r
-// }
 
 func main() {
 	t := time.Now()
@@ -322,7 +278,6 @@ func main() {
 		fmt.Printf("threads: %v\n", threads)
 		fmt.Printf("dictSize: %v\n", dictSize)
 		fmt.Printf("wordCount: %v\n", wordCount)
-		// fmt.Printf("uniqwords: %v\n", uniqwords)
-		// fmt.Printf("result size: %v\n", len(result))
+
 	}
 }
