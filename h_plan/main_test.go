@@ -5,7 +5,7 @@ import (
 )
 
 func TestXxx(t *testing.T) {
-	tree := NewTree(func(a, b Item) int { return a.(int) - b.(int) })
+	tree := NewTree(func(a, b Item) int64 { return int64(a.(int)) - int64(b.(int)) })
 	tree.Insert(1)
 	tree.Insert(2)
 	tree.Insert(5)

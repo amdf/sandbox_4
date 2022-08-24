@@ -19,7 +19,7 @@ var verb bool
 type Item interface{}
 
 // CompareFunc returns 0 if a==b, <0 if a<b, >0 if a>b.
-type CompareFunc func(a, b Item) int
+type CompareFunc func(a, b Item) int64
 
 type Tree struct {
 	// Root of the tree
@@ -856,17 +856,24 @@ func (tr *Tree) validateTreeHelper(n *node) {
 var debug bool
 var debug2 bool
 var procs *Tree
-var busy map[int]int64
+var nearest *Tree
+
 var ProcCount, TaskCount, procsLen int
 var sum *big.Int
 
+type Busy struct {
+	Sec  int64
+	Proc int
+}
+
 func processing(inp io.Reader, w io.Writer) {
 	r := bufio.NewReader(inp)
-	busy = make(map[int]int64)
+
 	fmt.Fscanln(r, &ProcCount, &TaskCount)
 
 	var energy int
-	procs = NewTree(func(a, b Item) int { return a.(int) - b.(int) })
+	procs = NewTree(func(a, b Item) int64 { return int64(a.(int)) - int64(b.(int)) })
+	nearest = NewTree(func(a, b Item) int64 { return a.(Busy).Sec - b.(Busy).Sec })
 
 	for i := 0; i < ProcCount; i++ {
 		fmt.Fscanf(r, "%d", &energy)
@@ -878,7 +885,7 @@ func processing(inp io.Reader, w io.Writer) {
 	sum = big.NewInt(0)
 
 	var t, sec int64
-	var t2 int64
+	var t2, tsince int64
 	for i := 0; i < TaskCount; i++ {
 		fmt.Fscan(r, &t, &sec)
 		if debug2 {
@@ -886,22 +893,40 @@ func processing(inp io.Reader, w io.Writer) {
 		}
 
 		elapsed := t - t2
+		tsince += elapsed
 
-		for j := range busy {
+		if nearest.Len() > 0 {
+			ni := nearest.Min()
 
-			if elapsed >= busy[j] {
-				procs.Insert(j)
-				delete(busy, j)
-				if debug2 {
-					fmt.Println("return energy", j)
-				}
-			} else {
-				//busy[j] = busy[j] - elapsed
-				if debug2 {
-					fmt.Println("energy", j, "elapsed", elapsed, "remained", busy[j])
+			it := ni.Item()
+			if it != nil {
+				if tsince >= it.(Busy).Sec {
+					j := it.(Busy).Proc
+					tsince -= it.(Busy).Sec
+					nearest.DeleteWithIterator(ni)
+					procs.Insert(j)
+					if debug2 {
+						fmt.Println("return energy", j)
+					}
 				}
 			}
 		}
+
+		// for j := range busy {
+
+		// 	if elapsed >= busy[j] {
+		// 		procs.Insert(j)
+		// 		delete(busy, j)
+		// 		if debug2 {
+		// 			fmt.Println("return energy", j)
+		// 		}
+		// 	} else {
+		// 		//busy[j] = busy[j] - elapsed
+		// 		if debug2 {
+		// 			fmt.Println("energy", j, "elapsed", elapsed, "remained", busy[j])
+		// 		}
+		// 	}
+		// }
 
 		t2 = t
 
@@ -910,12 +935,15 @@ func processing(inp io.Reader, w io.Writer) {
 		a := big.NewInt(0)
 		b := big.NewInt(0)
 
-		if len(busy) < ProcCount {
+		if procs.Len() > 0 {
 
 			item := procs.Min().Item()
 			if nil == item {
 				panic("nil item")
 			}
+
+			//TODO: перенести выше
+
 			e := item.(int)
 
 			a.SetInt64(int64(e))
@@ -924,8 +952,12 @@ func processing(inp io.Reader, w io.Writer) {
 
 			sum = sum.Add(sum, a)
 
+			if debug2 {
+				fmt.Println("+", sec, "*", e, "=", sum.String())
+			}
 			procs.DeleteWithKey(item)
-			busy[e] = sec
+
+			nearest.Insert(Busy{Proc: e, Sec: sec})
 
 			if debug2 {
 				fmt.Println("claim energy", e, "for", sec, "s")
@@ -941,6 +973,7 @@ func main() {
 	t := time.Now()
 	if len(os.Args) > 1 {
 		debug = true
+		debug2 = true
 	}
 	processing(os.Stdin, os.Stdout)
 
