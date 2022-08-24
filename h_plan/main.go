@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"time"
 )
@@ -854,11 +855,13 @@ func (tr *Tree) validateTreeHelper(n *node) {
 
 var debug bool
 var procs *Tree
-var ProcCount, TaskCount int
+var busy map[int]int64
+var ProcCount, TaskCount, procsLen int
+var sum *big.Int
 
 func processing(inp io.Reader, w io.Writer) {
 	r := bufio.NewReader(inp)
-
+	busy = make(map[int]int64)
 	fmt.Fscanln(r, &ProcCount, &TaskCount)
 
 	var energy int
@@ -869,25 +872,67 @@ func processing(inp io.Reader, w io.Writer) {
 		procs.Insert(energy)
 	}
 
-	var t, sec int
+	procsLen = procs.Len()
+
+	sum = big.NewInt(0)
+
+	var t, sec, t2 int64
 	for i := 0; i < TaskCount; i++ {
-		fmt.Fscanf(r, "%d %d", &t, &sec)
+		fmt.Fscan(r, &t, &sec)
+		if debug {
+			fmt.Println("SEC #", t, ":")
+		}
+		//fmt.Fprintln(w, t, sec)
+		elapsed := t - t2
+
+		for j := range busy {
+
+			if elapsed >= busy[j] {
+				procs.Insert(j)
+				delete(busy, j)
+				if debug {
+					fmt.Println("return energy", j)
+				}
+			} else {
+				busy[j] = busy[j] - elapsed
+				if debug {
+					fmt.Println("energy", j, "elapsed", elapsed, "remained", busy[j])
+				}
+			}
+		}
+
+		t2 = t
+
+		////////////////////////////////
+
+		a := big.NewInt(0)
+		b := big.NewInt(0)
+
+		if len(busy) < ProcCount {
+
+			item := procs.Min().Item()
+			if nil == item {
+				panic("nil item")
+			}
+			e := item.(int)
+
+			a.SetInt64(int64(e))
+			b.SetInt64(int64(sec))
+			a = a.Mul(a, b)
+
+			sum = sum.Add(sum, a)
+
+			procs.DeleteWithKey(item)
+			busy[e] = sec
+
+			if debug {
+				fmt.Println("claim energy", e, "for", sec, "s")
+			}
+		}
+
 	}
-	// dictSize, _ = strconv.ParseInt(sc.Text(), 10, 64)
 
-	// for i := 0; i < int(dictSize); i++ {
-	// 	if !sc.Scan() {
-	// 		break
-	// 	}
-	// 	s := sc.Text()
-
-	// }
-
-	// if !sc.Scan() {
-	// 	return
-	// }
-	// wordCount, _ = strconv.ParseInt(sc.Text(), 10, 64)
-	//fmt.Fprintln(w, procs.Len())
+	fmt.Fprint(w, sum.String())
 }
 
 func main() {
@@ -900,7 +945,11 @@ func main() {
 	if debug {
 		fmt.Println()
 		fmt.Println(time.Since(t))
-		fmt.Printf("procs.Len(): %v\n", procs.Len())
+		fmt.Printf("procs.Len(): %v\n", procsLen)
 		fmt.Printf("TaskCount: %v\n", TaskCount)
+		//fmt.Printf("procs:\n%v\n", procs.DumpAsString())
+		//fmt.Printf("procs.Min(): %v\n", procs.Min().Item())
+		//fmt.Printf("procs.Max(): %v\n", procs.Max().Item())
+		fmt.Printf("sum: %v\n", sum.Text(10))
 	}
 }
