@@ -854,6 +854,7 @@ func (tr *Tree) validateTreeHelper(n *node) {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 var debug bool
+var debug2 bool
 var procs *Tree
 var busy map[int]int64
 var ProcCount, TaskCount, procsLen int
@@ -876,13 +877,14 @@ func processing(inp io.Reader, w io.Writer) {
 
 	sum = big.NewInt(0)
 
-	var t, sec, t2 int64
+	var t, sec int64
+	var t2 int64
 	for i := 0; i < TaskCount; i++ {
 		fmt.Fscan(r, &t, &sec)
-		if debug {
+		if debug2 {
 			fmt.Println("SEC #", t, ":")
 		}
-		//fmt.Fprintln(w, t, sec)
+
 		elapsed := t - t2
 
 		for j := range busy {
@@ -890,12 +892,12 @@ func processing(inp io.Reader, w io.Writer) {
 			if elapsed >= busy[j] {
 				procs.Insert(j)
 				delete(busy, j)
-				if debug {
+				if debug2 {
 					fmt.Println("return energy", j)
 				}
 			} else {
-				busy[j] = busy[j] - elapsed
-				if debug {
+				//busy[j] = busy[j] - elapsed
+				if debug2 {
 					fmt.Println("energy", j, "elapsed", elapsed, "remained", busy[j])
 				}
 			}
@@ -925,7 +927,7 @@ func processing(inp io.Reader, w io.Writer) {
 			procs.DeleteWithKey(item)
 			busy[e] = sec
 
-			if debug {
+			if debug2 {
 				fmt.Println("claim energy", e, "for", sec, "s")
 			}
 		}
