@@ -19,7 +19,7 @@ var verb bool
 type Item interface{}
 
 // CompareFunc returns 0 if a==b, <0 if a<b, >0 if a>b.
-type CompareFunc func(a, b Item) int64
+type CompareFunc func(a, b Item) int
 
 type Tree struct {
 	// Root of the tree
@@ -862,8 +862,8 @@ var ProcCount, TaskCount, procsLen int
 var sum *big.Int
 
 type Busy struct {
-	Sec  int64
-	Proc int
+	Time int64
+	Proc int64
 }
 
 func processing(inp io.Reader, w io.Writer) {
@@ -871,20 +871,54 @@ func processing(inp io.Reader, w io.Writer) {
 
 	fmt.Fscanln(r, &ProcCount, &TaskCount)
 
-	var energy int
-	procs = NewTree(func(a, b Item) int64 { return int64(a.(int)) - int64(b.(int)) })
-	nearest = NewTree(func(a, b Item) int64 { return a.(Busy).Sec - b.(Busy).Sec })
+	var energy int64
+
+	// CompareFunc returns 0 if a==b, <0 if a<b, >0 if a>b.
+	procs = NewTree(func(a, b Item) int {
+		aAsserted := a.(int64)
+		bAsserted := b.(int64)
+		switch {
+		case aAsserted > bAsserted:
+			return 1
+		case aAsserted < bAsserted:
+			return -1
+		default:
+			return 0
+		}
+	})
+	nearest = NewTree(func(a, b Item) int {
+		aAsserted := a.(Busy).Time
+		bAsserted := b.(Busy).Time
+		switch {
+		case aAsserted > bAsserted:
+			//fmt.Println("=========== found", aAsserted, ">", bAsserted)
+			return 1
+		case aAsserted < bAsserted:
+			//fmt.Println("=========== found", aAsserted, "<", bAsserted)
+			return -1
+		default:
+			//fmt.Println("=========== found", aAsserted, "=", bAsserted)
+			aproc := a.(Busy).Proc
+			bproc := b.(Busy).Proc
+			switch {
+			case aproc > bproc:
+				return 1
+			case aproc < bproc:
+				return -1
+			default:
+				return 0
+			}
+		}
+	})
 
 	for i := 0; i < ProcCount; i++ {
-		fmt.Fscanf(r, "%d", &energy)
+		fmt.Fscan(r, &energy)
 		procs.Insert(energy)
 	}
 
 	procsLen = procs.Len()
 
 	sum = big.NewInt(0)
-	a := big.NewInt(0)
-	b := big.NewInt(0)
 
 	var t, sec int64
 
@@ -892,50 +926,78 @@ func processing(inp io.Reader, w io.Writer) {
 		fmt.Fscan(r, &t, &sec)
 
 		if debug2 {
-			fmt.Println("SEC #", t, ":")
+			fmt.Println("\nSEC #", t, ":")
 		}
 
-		nomore := false
-
-		for !nomore {
+		for {
 			if 0 == nearest.Len() {
 				break
 			}
-			ni := nearest.Min()
-			it := ni.Item()
-			if it != nil {
-				if t >= it.(Busy).Sec {
-					j := it.(Busy).Proc
+			if debug2 {
+				fmt.Println("looking...", nearest.Len())
+			}
+			it := nearest.Min()
+			key := it.Item()
+			if key == nil {
+				panic("smth3")
+			}
 
-					nearest.DeleteWithIterator(ni)
-					procs.Insert(j)
+			if t >= key.(Busy).Time {
 
-					if debug2 {
-						fmt.Println("return energy", j)
-					}
-				} else {
-					nomore = true
+				if debug2 {
+					fmt.Println("free proc", key.(Busy).Proc, "from sec", key.(Busy).Time)
 				}
+
+				procs.Insert(key.(Busy).Proc)
+				nearest.DeleteWithKey(key)
+			} else {
+				if debug2 {
+					fmt.Println("stop at proc", key.(Busy).Proc, "from sec", key.(Busy).Time)
+				}
+				break
 			}
 		}
-
+		if debug2 {
+			fmt.Println("done...", nearest.Len())
+		}
 		////////////////////////////////
 
 		if procs.Len() > 0 {
 			it := procs.Min()
 			item := it.Item()
 
-			e := item.(int)
-			a.SetInt64(int64(e))
-			b.SetInt64(int64(sec))
-			a = a.Mul(a, b)
-			sum = sum.Add(sum, a)
+			e := item.(int64)
+
+			a := big.NewInt(e)
+			b := big.NewInt(sec)
+
+			add := new(big.Int)
+			add.Mul(a, b)
+
 			if debug2 {
-				fmt.Println("claim energy", e, "for", sec, "s")
-				fmt.Println("+", sec, "*", e, "=", sum.String())
+				fmt.Println(a.String(), "*", b.String(), "=", add.String())
 			}
+
+			before := sum.String()
+			sum2 := new(big.Int)
+			sum2.Add(sum, add)
+
+			if debug2 {
+				fmt.Println(before, "+", add.String(), "=", sum2.String())
+			}
+
+			sum.Set(sum2)
+
+			if debug2 {
+				fmt.Println("claim proc", e, "for", sec, "s", " until", t+sec)
+			}
+
 			procs.DeleteWithIterator(it)
-			nearest.Insert(Busy{Proc: e, Sec: t + sec})
+
+			if !nearest.Insert(Busy{Time: t + sec, Proc: e}) {
+				panic("Insert")
+			}
+
 			if (t + sec) < t {
 				panic("overflow")
 			}
@@ -955,7 +1017,7 @@ func main() {
 	t := time.Now()
 	if len(os.Args) > 1 {
 		debug = true
-		debug2 = true
+		//debug2 = true
 	}
 	processing(os.Stdin, os.Stdout)
 
