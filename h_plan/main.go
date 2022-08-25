@@ -886,24 +886,25 @@ func processing(inp io.Reader, w io.Writer) {
 	a := big.NewInt(0)
 	b := big.NewInt(0)
 
-	var t, t2, total, sec int64
+	var t, sec int64
 
 	for i := 0; i < TaskCount; i++ {
 		fmt.Fscan(r, &t, &sec)
+
 		if debug2 {
 			fmt.Println("SEC #", t, ":")
 		}
 
-		elapsed := t - t2
-		t2 = t
-		total += elapsed
+		nomore := false
 
-		if nearest.Len() > 0 {
+		for !nomore {
+			if 0 == nearest.Len() {
+				break
+			}
 			ni := nearest.Min()
-
 			it := ni.Item()
 			if it != nil {
-				if total >= it.(Busy).Sec { //>=
+				if t >= it.(Busy).Sec {
 					j := it.(Busy).Proc
 
 					nearest.DeleteWithIterator(ni)
@@ -912,6 +913,8 @@ func processing(inp io.Reader, w io.Writer) {
 					if debug2 {
 						fmt.Println("return energy", j)
 					}
+				} else {
+					nomore = true
 				}
 			}
 		}
@@ -919,7 +922,8 @@ func processing(inp io.Reader, w io.Writer) {
 		////////////////////////////////
 
 		if procs.Len() > 0 {
-			item := procs.Min().Item()
+			it := procs.Min()
+			item := it.Item()
 
 			e := item.(int)
 			a.SetInt64(int64(e))
@@ -928,16 +932,18 @@ func processing(inp io.Reader, w io.Writer) {
 			sum = sum.Add(sum, a)
 			if debug2 {
 				fmt.Println("claim energy", e, "for", sec, "s")
-			}
-			if debug2 {
 				fmt.Println("+", sec, "*", e, "=", sum.String())
 			}
-			procs.DeleteWithKey(item)
-			nearest.Insert(Busy{Proc: e, Sec: total + sec})
-			if (total + sec) < total {
+			procs.DeleteWithIterator(it)
+			nearest.Insert(Busy{Proc: e, Sec: t + sec})
+			if (t + sec) < t {
 				panic("overflow")
 			}
 
+		} else {
+			if debug2 {
+				fmt.Println("deny task")
+			}
 		}
 
 	}
