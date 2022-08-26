@@ -14,6 +14,8 @@ type Tyle struct {
 	bl, br  *Tyle
 	l, r    *Tyle
 	visited bool
+	col     int
+	row     int
 }
 
 type Row []Tyle
@@ -52,11 +54,17 @@ func (m *HexMap) getLine(line string) (result []byte) {
 func (m *HexMap) newRow(line string) (row Row) {
 	chars := m.getLine(line)
 
+	n := 0
 	for _, c := range chars {
 		color := c
 		m.colors[color] = m.colors[color] + 1 //count colors
 		m.total++                             //count total
-		t := Tyle{c: color}
+		t := Tyle{
+			c:   color,
+			row: len(m.rows),
+			col: n,
+		}
+		n++
 		row = append(row, t)
 	}
 
@@ -126,10 +134,8 @@ func (m *HexMap) addEven(line string) {
 		for i := 0; i < len(row)-1; i++ { //ROW top rights
 			row[i].tr = &top[i+1]
 		}
-		for i := 0; i < len(top); i++ { //TOP bottom rights
+		for i := 0; i < len(top); i++ { //TOP bottom rights & ROW top lefts
 			top[i].br = &row[i]
-		}
-		for i := 1; i < len(row); i++ { //ROW top lefts
 			row[i].tl = &top[i]
 		}
 	}
@@ -171,7 +177,7 @@ func (m *HexMap) FirstNonVisited() (result *Tyle) {
 	return
 }
 
-func (m *HexMap) FillFrom(color byte, t *Tyle) (size int) {
+func (m *HexMap) FillFrom(s string, color byte, t *Tyle) (size int) {
 
 	if nil == t {
 		// fmt.Println("nil")
@@ -184,21 +190,28 @@ func (m *HexMap) FillFrom(color byte, t *Tyle) (size int) {
 	}
 
 	if t.c == color {
+		if debug {
+			fmt.Println(s, "Visiting", t.row+1, t.col+1, "=", string(t.c))
+		}
 		t.visited = true
 		size = 1
 
 		// fmt.Println("right:")
-		size += m.FillFrom(color, t.r)
+		size += m.FillFrom(s+"1", color, t.r)
 		// fmt.Println("bottom right:")
-		size += m.FillFrom(color, t.br)
+		size += m.FillFrom(s+"2", color, t.br)
 		// fmt.Println("bottom left:")
-		size += m.FillFrom(color, t.bl)
+		size += m.FillFrom(s+"3", color, t.bl)
 		// fmt.Println("left:")
-		size += m.FillFrom(color, t.l)
+		size += m.FillFrom(s+"4", color, t.l)
 		// fmt.Println("top left:")
-		size += m.FillFrom(color, t.tl)
+		size += m.FillFrom(s+"5", color, t.tl)
 		// fmt.Println("top right:")
-		size += m.FillFrom(color, t.tr)
+		size += m.FillFrom(s+"6", color, t.tr)
+	} else {
+		if debug {
+			fmt.Println(s+" ", "Stopped at", t.row+1, t.col+1, "=", string(t.c))
+		}
 	}
 	return
 }
@@ -224,7 +237,7 @@ func (m *HexMap) IsOK() string {
 		if debug {
 			fmt.Println("====TYLE=====")
 		}
-		size := m.FillFrom(tyle.c, tyle)
+		size := m.FillFrom("", tyle.c, tyle)
 		m.visited += size
 		// если количество в области менее количества в цвете - ответ НЕТ
 		if size < m.colors[tyle.c] {
@@ -287,8 +300,9 @@ func main() {
 		debug = true
 		//debug2 = true
 	}
+
 	if debug2 {
-		f, _ := os.Open("tests/01")
+		f, _ := os.Open("tests/07")
 
 		processing(f, os.Stdout)
 	} else {
