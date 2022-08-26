@@ -9,23 +9,28 @@ import (
 )
 
 type Tyle struct {
-	c      byte
-	tl, tr *Tyle
-	bl, br *Tyle
-	l, r   *Tyle
+	c       byte
+	tl, tr  *Tyle
+	bl, br  *Tyle
+	l, r    *Tyle
+	visited bool
 }
 
 type Row []Tyle
 
 type HexMap struct {
-	n   map[byte]int
-	r   []Row
-	alt bool
+	colors  map[byte]int
+	found   map[byte]bool
+	rows    []Row
+	alt     bool
+	visited int
+	total   int
 }
 
 func NewHexMap(alt bool) *HexMap {
 	m := HexMap{}
-	m.n = make(map[byte]int)
+	m.colors = make(map[byte]int)
+	m.found = make(map[byte]bool)
 	m.alt = alt
 	return &m
 }
@@ -37,7 +42,9 @@ func (m *HexMap) getLine(line string) (result []byte) {
 			result = append(result, c)
 		}
 	}
-	fmt.Printf("result: %v\n", result)
+	if debug {
+		fmt.Printf("result: %v\n", result)
+	}
 
 	return
 }
@@ -47,7 +54,8 @@ func (m *HexMap) newRow(line string) (row Row) {
 
 	for _, c := range chars {
 		color := c
-		m.n[color] = m.n[color] + 1 //count colors
+		m.colors[color] = m.colors[color] + 1 //count colors
+		m.total++                             //count total
 		t := Tyle{c: color}
 		row = append(row, t)
 	}
@@ -61,11 +69,11 @@ func (m *HexMap) newRow(line string) (row Row) {
 
 func (m *HexMap) addFirst(line string) {
 	row := m.newRow(line)
-	m.r = append(m.r, row)
+	m.rows = append(m.rows, row)
 }
 
 func (m *HexMap) addOdd(line string) {
-	top := m.r[len(m.r)-1]
+	top := m.rows[len(m.rows)-1]
 	row := m.newRow(line)
 
 	if !m.alt {
@@ -97,14 +105,12 @@ func (m *HexMap) addOdd(line string) {
 		}
 	}
 
-	m.r = append(m.r, row)
+	m.rows = append(m.rows, row)
 }
 
 func (m *HexMap) addEven(line string) {
-	top := m.r[len(m.r)-1]
+	top := m.rows[len(m.rows)-1]
 	row := m.newRow(line)
-	fmt.Printf("len(top): %v\n", len(top))
-	fmt.Printf("len(row): %v\n", len(row))
 
 	if !m.alt {
 		for i := 0; i < len(row); i++ {
@@ -128,23 +134,113 @@ func (m *HexMap) addEven(line string) {
 		}
 	}
 
-	m.r = append(m.r, row)
+	m.rows = append(m.rows, row)
 }
 
 func (m *HexMap) Add(line string) {
-	odd := (0 == len(m.r)%2)
+	odd := (0 == len(m.rows)%2)
 	if odd {
-		if 0 == len(m.r) {
-			fmt.Println("addFirst")
+		if 0 == len(m.rows) {
+			if debug {
+				fmt.Println("addFirst")
+			}
 			m.addFirst(line)
 		} else {
-			fmt.Println("addOdd")
+			if debug {
+				fmt.Println("addOdd")
+			}
 			m.addOdd(line)
 		}
 	} else {
-		fmt.Println("addEven")
+		if debug {
+			fmt.Println("addEven")
+		}
 		m.addEven(line)
 	}
+}
+
+func (m *HexMap) FirstNonVisited() (result *Tyle) {
+	for i := range m.rows {
+		for j := range m.rows[i] {
+			if !m.rows[i][j].visited {
+				result = &m.rows[i][j]
+				return
+			}
+		}
+	}
+	return
+}
+
+func (m *HexMap) FillFrom(color byte, t *Tyle) (size int) {
+
+	if nil == t {
+		// fmt.Println("nil")
+		return
+	}
+
+	if t.visited {
+		// fmt.Println("visited")
+		return
+	}
+
+	if t.c == color {
+		t.visited = true
+		size = 1
+
+		// fmt.Println("right:")
+		size += m.FillFrom(color, t.r)
+		// fmt.Println("bottom right:")
+		size += m.FillFrom(color, t.br)
+		// fmt.Println("bottom left:")
+		size += m.FillFrom(color, t.bl)
+		// fmt.Println("left:")
+		size += m.FillFrom(color, t.l)
+		// fmt.Println("top left:")
+		size += m.FillFrom(color, t.tl)
+		// fmt.Println("top right:")
+		size += m.FillFrom(color, t.tr)
+	}
+	return
+}
+
+func (m *HexMap) IsOK() string {
+	for m.visited < m.total {
+		// 		ищем непосещённую
+		tyle := m.FirstNonVisited()
+		if nil == tyle {
+			break
+		}
+		// получаем цвет
+
+		// если цвет в списке найденных ответ НЕТ
+		if m.found[tyle.c] {
+			if debug {
+				fmt.Println("color found!!!", tyle.c)
+			}
+			return "NO"
+		}
+		// иначе
+		// заполняем область - fill() - получаем количество в области
+		if debug {
+			fmt.Println("====TYLE=====")
+		}
+		size := m.FillFrom(tyle.c, tyle)
+		m.visited += size
+		// если количество в области менее количества в цвете - ответ НЕТ
+		if size < m.colors[tyle.c] {
+			if debug {
+				fmt.Println("color", string(tyle.c), "found", size, "must be", m.colors[tyle.c])
+			}
+			return "NO"
+		}
+		// иначе
+		// отмечаем цвет как найденный
+		m.found[tyle.c] = true
+		if debug {
+			fmt.Println("color", string(tyle.c), ":", size)
+		}
+	}
+	return "YES"
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -162,21 +258,25 @@ func processing(inp io.Reader, w io.Writer) {
 
 	for i := 0; i < numMaps; i++ {
 		fmt.Fscanf(r, "%d %d\n", &lines, &strlen)
-		fmt.Printf("lines: %v\n", lines)
-		fmt.Printf("strlen: %v\n", strlen)
+		if debug {
+			fmt.Printf("lines: %v\n", lines)
+			fmt.Printf("strlen: %v\n", strlen)
+		}
 
 		m := NewHexMap((0 == strlen%2))
 		maps = append(maps, m)
 
 		for j := 0; j < lines; j++ {
 			line, _ := r.ReadString('\n')
-			//fmt.Fscanln(r, &line)
 			m.Add(line)
 		}
 	}
 
-	for _, m := range maps {
-		fmt.Printf("colors: %v\n", m.n)
+	for i := 0; i < numMaps; i++ {
+		if debug {
+			fmt.Println("=========================")
+		}
+		fmt.Fprintln(w, maps[i].IsOK())
 	}
 
 }
@@ -187,7 +287,13 @@ func main() {
 		debug = true
 		//debug2 = true
 	}
-	processing(os.Stdin, os.Stdout)
+	if debug2 {
+		f, _ := os.Open("tests/01")
+
+		processing(f, os.Stdout)
+	} else {
+		processing(os.Stdin, os.Stdout)
+	}
 
 	if debug {
 		fmt.Println()
