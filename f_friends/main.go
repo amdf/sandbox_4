@@ -1,13 +1,17 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
-// var verb bool
+var verb bool
 
 type Item interface{}
 
@@ -711,38 +715,38 @@ func init() {
 	negativeLimitNode = &node{}
 }
 
-// func (root *Tree) DumpAsString() string {
-// 	s := ""
-// 	i := 0
-// 	verb = true
-// 	for it := root.Min(); it != root.Limit(); it = it.Next() {
-// 		s += fmt.Sprintf("node %03d: %#v\n", i, it.Item())
-// 		i++
-// 	}
-// 	return s
-// }
+func (root *Tree) DumpAsString() string {
+	s := ""
+	i := 0
+	verb = true
+	for it := root.Min(); it != root.Limit(); it = it.Next() {
+		s += fmt.Sprintf("node %03d: %#v\n", i, it.Item())
+		i++
+	}
+	return s
+}
 
-// func (root *Tree) Dump() {
-// 	i := 0
-// 	verb = true
-// 	for it := root.Min(); it != root.Limit(); it = it.Next() {
-// 		fmt.Printf("node %03d: %#v\n", i, it.Item())
-// 		i++
-// 	}
-// 	n := root.root
-// 	for n.parent != nil {
-// 		n = n.parent
-// 	}
+func (root *Tree) Dump() {
+	i := 0
+	verb = true
+	for it := root.Min(); it != root.Limit(); it = it.Next() {
+		fmt.Printf("node %03d: %#v\n", i, it.Item())
+		i++
+	}
+	n := root.root
+	for n.parent != nil {
+		n = n.parent
+	}
 
-// 	root.Walk(n, 0, "root")
-// }
+	root.Walk(n, 0, "root")
+}
 
-// func colorString(n *node) string {
-// 	if n.color == red {
-// 		return "red"
-// 	}
-// 	return "black"
-// }
+func colorString(n *node) string {
+	if n.color == red {
+		return "red"
+	}
+	return "black"
+}
 
 func (tr *Tree) Walk(n *node, indent int, lab string) {
 
@@ -809,33 +813,182 @@ func (tr *Tree) Walk(n *node, indent int, lab string) {
 
 var debug bool
 
+type frlist []int
+
+type FriendCase struct {
+	friends *Tree
+	common  map[int]int
+}
+
+var maxid int
+var friends map[int]FriendCase
+var userids []int
+
+func comp(a, b Item) int {
+	aAsserted := a.(int)
+	bAsserted := b.(int)
+	switch {
+	case aAsserted > bAsserted:
+		return 1
+	case aAsserted < bAsserted:
+		return -1
+	default:
+		return 0
+	}
+}
+
 func processing(inp io.Reader, w io.Writer) {
-	// r := bufio.NewReader(inp)
+	r := bufio.NewReader(inp)
 
-	// fmt.Fscanln(r, &ProcCount, &TaskCount)
+	var FriendCount, LineCount int
+	fmt.Fscanln(r, &FriendCount, &LineCount)
 
-	// var energy int64
+	friends = make(map[int]FriendCase)
 
-	// // CompareFunc returns 0 if a==b, <0 if a<b, >0 if a>b.
-	procs := NewTree(func(a, b Item) int {
-		aAsserted := a.(int64)
-		bAsserted := b.(int64)
-		switch {
-		case aAsserted > bAsserted:
-			return 1
-		case aAsserted < bAsserted:
-			return -1
-		default:
-			return 0
+	for i := 0; i < LineCount; i++ {
+		var fr1, fr2 int
+		fmt.Fscanln(r, &fr1, &fr2)
+
+		saveFriendship(fr1, fr2)
+		saveFriendship(fr2, fr1)
+	}
+
+	///procs := NewTree(comp)
+
+	sort.Ints(userids)
+
+	slist := NewTree(comp)
+	for _, id := range userids {
+		slist.Insert(id)
+	}
+
+	// fmt.Printf("userids: %v\n", userids)
+	for _, id := range userids {
+		if debug {
+			fmt.Println()
+			fmt.Printf("id: %v\n", id)
 		}
-	})
 
-	procs.Len()
-	// for i := 0; i < ProcCount; i++ {
-	// 	fmt.Fscan(r, &energy)
-	// 	procs.Insert(energy)
-	// }
+		slist.DeleteWithKey(id)
 
+		for it := friends[id].friends.Min(); !it.Limit(); it = it.Next() {
+			item := it.Item()
+			frid := item.(int)
+
+			slist.DeleteWithKey(frid)
+		}
+		fmt.Printf("length: %v\n", slist.Len())
+
+		for it := friends[id].friends.Min(); !it.Limit(); it = it.Next() {
+			itemfrid := it.Item()
+			frid := itemfrid.(int)
+			// fmt.Printf("search in friend: %v\n", frid)
+			t := time.Now()
+			for sit := slist.Min(); !sit.Limit(); sit = sit.Next() {
+				sitem := sit.Item()
+				sid := sitem.(int)
+
+				if nil != friends[sid].friends.Get(frid) {
+					v := friends[id].common[sid]
+					v = v + 1
+					friends[id].common[sid] = v
+
+					v = friends[sid].common[id]
+					v = v + 1
+					friends[sid].common[id] = v
+
+					friends[sid].friends.DeleteWithKey(id)
+				}
+
+			}
+			fmt.Println(time.Since(t))
+		}
+
+		slist.Insert(id)
+
+		for it := friends[id].friends.Min(); !it.Limit(); it = it.Next() {
+			item := it.Item()
+			frid := item.(int)
+			slist.Insert(frid)
+		}
+
+	}
+
+	if debug {
+		// for _, id := range userids {
+		// 	fmt.Printf("%v friends[id].friends: %v\n", id, friends[id].friends.DumpAsString())
+		// }
+		// for _, id := range userids {
+		// 	fmt.Printf("%v friends[id].common: %v\n", id, friends[id].common)
+		// }
+	}
+
+	if 0 == LineCount {
+		maxid = FriendCount
+	}
+
+	for id := 1; id <= maxid; id++ {
+		fmt.Printf("%v\n", extract(id))
+	}
+}
+
+func extract(id int) (result string) {
+	if debug {
+		fmt.Println()
+		fmt.Printf("zid: %v\n", id)
+	}
+	t := time.Now()
+
+	var max int
+	maxes := make(map[int][]int)
+	fr := friends[id]
+	for id, count := range fr.common {
+		if count > max {
+			max = count
+		}
+
+		maxes[count] = append(maxes[count], id)
+	}
+
+	if 0 == max {
+		return "0"
+	}
+
+	sort.Ints(maxes[max])
+	var b strings.Builder
+
+	for _, val := range maxes[max] {
+		b.WriteString(strconv.Itoa(val))
+		b.WriteByte(' ')
+	}
+
+	result = strings.TrimSpace(b.String())
+
+	if debug {
+
+		fmt.Println(time.Since(t))
+
+	}
+
+	return result
+}
+
+func saveFriendship(fr1 int, fr2 int) {
+	fr, ok := friends[fr1]
+	if !ok {
+		fr = FriendCase{}
+		fr.common = make(map[int]int)
+		fr.friends = NewTree(comp)
+
+		friends[fr1] = fr
+		userids = append(userids, fr1)
+		if maxid < fr1 {
+			maxid = fr1
+		}
+	}
+
+	fr.friends.Insert(fr2)
+	friends[fr1] = fr
 }
 
 func main() {
