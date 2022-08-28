@@ -923,13 +923,12 @@ func processing(inp io.Reader, w io.Writer) {
 		}
 	}
 
-	if 0 == LineCount {
-		maxid = FriendCount
-	}
+	// maxid = FriendCount
 
-	for id := 1; id <= maxid; id++ {
+	for id := 1; id <= FriendCount; id++ {
 		fmt.Fprintln(w, extract(id))
 	}
+
 }
 
 func extract(id int) (result string) {
