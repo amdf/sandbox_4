@@ -42,25 +42,26 @@ func (tt MyTime) Valid() bool {
 	return tt.T2.After(tt.T1)
 }
 
-func processing(in io.Reader, out io.Writer) {
-
+func processing(in io.Reader, w io.Writer) {
+	r := bufio.NewReader(in)
 	var numSets int
-	fmt.Fscan(in, &numSets)
+	fmt.Fscan(r, &numSets)
 
 	for ; numSets > 0; numSets-- {
 		var numTimes int
-		fmt.Fscan(in, &numTimes)
+		fmt.Fscan(r, &numTimes)
 
 		var knownTimes []MyTime
+
 		valid := true
 
 		for ; numTimes > 0; numTimes-- {
 
 			var val string
-			fmt.Fscan(in, &val)
+			fmt.Fscan(r, &val)
 
 			if !valid {
-				// fmt.Println("!!!skip")
+				//fmt.Println("!!!skip")
 				continue
 			}
 			vals := strings.Split(val, "-")
@@ -68,25 +69,12 @@ func processing(in io.Reader, out io.Writer) {
 			var t MyTime
 			t1, err1 := time.Parse("15:04:05", vals[0])
 			t2, err2 := time.Parse("15:04:05", vals[1])
-
+			t.T1 = t1
+			t.T2 = t2
 			if nil != err1 || nil != err2 {
 				// fmt.Println("!!!format")
 				valid = false
 			} else {
-				t.T1 = t1
-				t.T2 = t2
-
-				cross := false
-				for _, tcr := range knownTimes {
-					if t.IsCross(tcr) {
-						cross = true
-						break
-					}
-				}
-				if cross {
-					//fmt.Println("!!!cross", t)
-					valid = false
-				}
 				knownTimes = append(knownTimes, t)
 
 				if !t.Valid() {
@@ -96,10 +84,33 @@ func processing(in io.Reader, out io.Writer) {
 			}
 		}
 
+		//tn := time.Now()
 		if valid {
-			fmt.Fprintln(out, "YES")
+			for _, t := range knownTimes {
+				cross := false
+				var tcr MyTime
+				for _, tcr = range knownTimes {
+					if t.T1 != tcr.T1 && t.T2 != tcr.T2 {
+						if t.IsCross(tcr) {
+							cross = true
+							break
+						}
+					}
+				}
+				if cross {
+					//fmt.Println("!!!cross\n", t, "\n", tcr)
+					valid = false
+					break
+				}
+			}
+		}
+
+		//fmt.Fprintln(w, "calculated", time.Since(tn))
+
+		if valid {
+			fmt.Fprintln(w, "YES")
 		} else {
-			fmt.Fprintln(out, "NO")
+			fmt.Fprintln(w, "NO")
 		}
 
 	}
@@ -107,9 +118,7 @@ func processing(in io.Reader, out io.Writer) {
 }
 
 func main() {
-	//t := time.Now()
-	f := bufio.NewWriter(os.Stdout)
-	defer f.Flush()
-	processing(os.Stdin, f)
-	//fmt.Fprintln(f, "time", time.Since(t))
+
+	processing(os.Stdin, os.Stdout)
+
 }
