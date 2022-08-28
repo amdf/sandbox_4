@@ -857,9 +857,10 @@ func processing(inp io.Reader, w io.Writer) {
 
 	sort.Ints(userids)
 
-	slist := NewTree(comp)
-	for _, id := range userids {
-		slist.Insert(id)
+	if debug {
+		for _, id := range userids {
+			fmt.Printf("%v friends[id].friends: %v\n", id, friends[id].friends.DumpAsString())
+		}
 	}
 
 	// fmt.Printf("userids: %v\n", userids)
@@ -869,58 +870,57 @@ func processing(inp io.Reader, w io.Writer) {
 			fmt.Printf("id: %v\n", id)
 		}
 
-		slist.DeleteWithKey(id)
-
+		//проходим по списку друзей
 		for it := friends[id].friends.Min(); !it.Limit(); it = it.Next() {
-			item := it.Item()
-			frid := item.(int)
-
-			slist.DeleteWithKey(frid)
-		}
-		fmt.Printf("length: %v\n", slist.Len())
-
-		for it := friends[id].friends.Min(); !it.Limit(); it = it.Next() {
-			itemfrid := it.Item()
-			frid := itemfrid.(int)
+			frid := it.Item().(int) //друг из моего списка
 			// fmt.Printf("search in friend: %v\n", frid)
 			t := time.Now()
-			for sit := slist.Min(); !sit.Limit(); sit = sit.Next() {
-				sitem := sit.Item()
-				sid := sitem.(int)
 
-				if nil != friends[sid].friends.Get(frid) {
-					v := friends[id].common[sid]
-					v = v + 1
-					friends[id].common[sid] = v
+			//идём по списку его друзей
+			for sit := friends[frid].friends.Min(); !sit.Limit(); sit = sit.Next() {
+				//друг моего друга
+				sid := sit.Item().(int)
 
-					v = friends[sid].common[id]
-					v = v + 1
-					friends[sid].common[id] = v
+				//не должен быть уже проверен
+				_, checked := friends[id].common[sid]
+				if !checked && nil == friends[id].friends.Get(sid) && sid != id { //не должен быть моим другом
 
-					friends[sid].friends.DeleteWithKey(id)
+					//должен содержать в своём списке кого-то из моего списка
+
+					//идём по его списку друзей
+					for frit := friends[sid].friends.Min(); !frit.Limit(); frit = frit.Next() {
+						hisfr := frit.Item().(int)
+
+						//если содержится в моём списке
+						if nil != friends[id].friends.Get(hisfr) {
+							if debug {
+								fmt.Println(id, "has common fr with", sid, " i.e. ", hisfr)
+							}
+							//считаем это за совпадение и сохраняем
+							v := friends[id].common[sid]
+							v = v + 1
+							friends[id].common[sid] = v
+
+							v = friends[sid].common[id]
+							v = v + 1
+							friends[sid].common[id] = v
+						}
+					}
+
 				}
 
 			}
-			fmt.Println(time.Since(t))
-		}
-
-		slist.Insert(id)
-
-		for it := friends[id].friends.Min(); !it.Limit(); it = it.Next() {
-			item := it.Item()
-			frid := item.(int)
-			slist.Insert(frid)
+			if debug {
+				fmt.Println(time.Since(t))
+			}
 		}
 
 	}
 
 	if debug {
-		// for _, id := range userids {
-		// 	fmt.Printf("%v friends[id].friends: %v\n", id, friends[id].friends.DumpAsString())
-		// }
-		// for _, id := range userids {
-		// 	fmt.Printf("%v friends[id].common: %v\n", id, friends[id].common)
-		// }
+		for _, id := range userids {
+			fmt.Printf("%v friends[id].common: %v\n", id, friends[id].common)
+		}
 	}
 
 	if 0 == LineCount {
@@ -928,16 +928,16 @@ func processing(inp io.Reader, w io.Writer) {
 	}
 
 	for id := 1; id <= maxid; id++ {
-		fmt.Printf("%v\n", extract(id))
+		fmt.Fprintln(w, extract(id))
 	}
 }
 
 func extract(id int) (result string) {
 	if debug {
-		fmt.Println()
-		fmt.Printf("zid: %v\n", id)
+		// fmt.Println()
+		// fmt.Printf("zid: %v\n", id)
 	}
-	t := time.Now()
+	// t := time.Now()
 
 	var max int
 	maxes := make(map[int][]int)
@@ -966,7 +966,7 @@ func extract(id int) (result string) {
 
 	if debug {
 
-		fmt.Println(time.Since(t))
+		// fmt.Println(time.Since(t))
 
 	}
 
